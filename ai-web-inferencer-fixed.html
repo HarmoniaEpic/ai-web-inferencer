@@ -1,0 +1,2706 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Web-Inferencer - Local Model Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --background: #0f172a;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --border: #475569;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-dim: #64748b;
+            --sidebar-width: 360px;
+            --console-width: 420px;
+            --header-height: 56px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--background);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* ヘッダー */
+        .header {
+            height: var(--header-height);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1rem;
+            position: relative;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .menu-toggle {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .menu-toggle:hover {
+            background: var(--surface-light);
+        }
+
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .app-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-left: 0.5rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .header-btn:hover {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+
+        .header-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* GPU/CPU推論モードインジケーター */
+        .inference-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            position: relative;
+            transition: all 0.3s ease;
+            margin-right: 0.5rem;
+        }
+
+        .inference-indicator:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .inference-indicator:hover .mode-details {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .mode-icon {
+            font-size: 1.125rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .mode-text {
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        /* GPU Mode Styling */
+        .inference-indicator.gpu-mode {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+            border-color: var(--success);
+            animation: gpuGlow 2s ease-in-out infinite;
+        }
+
+        .inference-indicator.gpu-mode .mode-text {
+            color: var(--success);
+        }
+
+        @keyframes gpuGlow {
+            0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.3); }
+            50% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); }
+        }
+
+        /* CPU Mode Styling */
+        .inference-indicator.cpu-mode {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+            border-color: var(--primary);
+        }
+
+        .inference-indicator.cpu-mode .mode-text {
+            color: var(--primary);
+        }
+
+        /* WebGPU Mode Styling */
+        .inference-indicator.webgpu-mode {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.1));
+            border-color: var(--secondary);
+            animation: webgpuPulse 3s ease-in-out infinite;
+        }
+
+        .inference-indicator.webgpu-mode .mode-text {
+            color: var(--secondary);
+        }
+
+        @keyframes webgpuPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        /* WebGL Mode Styling */
+        .inference-indicator.webgl-mode {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
+            border-color: var(--warning);
+        }
+
+        .inference-indicator.webgl-mode .mode-text {
+            color: var(--warning);
+        }
+
+        /* Detecting Mode Styling */
+        .inference-indicator.detecting {
+            background: linear-gradient(135deg, rgba(156, 163, 175, 0.2), rgba(156, 163, 175, 0.1));
+            border-color: var(--text-dim);
+        }
+
+        .inference-indicator.detecting .mode-icon {
+            animation: spin 1s linear infinite;
+        }
+
+        .inference-indicator.detecting .mode-text {
+            color: var(--text-dim);
+        }
+
+        /* Inferring State - Active Inference Animation */
+        .inference-indicator.inferring {
+            animation: inferringPulse 0.8s ease-in-out infinite;
+        }
+
+        @keyframes inferringPulse {
+            0%, 100% { 
+                transform: scale(1);
+                filter: brightness(1);
+            }
+            50% { 
+                transform: scale(1.05);
+                filter: brightness(1.2);
+            }
+        }
+
+        .inference-indicator.inferring .mode-icon {
+            animation: fastSpin 0.8s linear infinite;
+        }
+
+        @keyframes fastSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* No Model Loaded State */
+        .inference-indicator.no-model {
+            background: var(--surface-light);
+            border-color: var(--border);
+        }
+
+        .inference-indicator.no-model .mode-text {
+            color: var(--text-dim);
+        }
+
+        /* Details Popup */
+        .mode-details {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            min-width: 280px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .mode-details::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            right: 20px;
+            width: 12px;
+            height: 12px;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            border-top: 1px solid var(--border);
+            transform: rotate(45deg);
+        }
+
+        .details-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+        }
+
+        .detail-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .detail-value {
+            color: var(--text);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .detail-value.success {
+            color: var(--success);
+        }
+
+        .detail-value.primary {
+            color: var(--primary);
+        }
+
+        .detail-value.secondary {
+            color: var(--secondary);
+        }
+
+        .detail-value.warning {
+            color: var(--warning);
+        }
+
+        /* メインレイアウト */
+        .main-container {
+            display: flex;
+            height: calc(100vh - var(--header-height));
+            position: relative;
+        }
+
+        /* サイドバー */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 50;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-section {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* モデルインポート */
+        .import-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--background);
+        }
+
+        .import-zone:hover, .import-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .import-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .import-text {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .import-formats {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .import-status {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: var(--background);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--success);
+            display: none;
+        }
+
+        .import-status.show {
+            display: block;
+        }
+
+        .import-status.error {
+            color: var(--danger);
+        }
+
+        /* モデルカード */
+        .model-tabs {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            background: var(--background);
+            padding: 0.25rem;
+            border-radius: 8px;
+        }
+
+        .model-tab {
+            flex: 1;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .model-tab.active {
+            background: var(--surface-light);
+            color: var(--primary);
+        }
+
+        .model-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        .model-card {
+            padding: 0.75rem;
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .model-card:hover {
+            background: var(--surface-light);
+            border-color: var(--primary);
+        }
+
+        .model-card.selected {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--primary);
+        }
+
+        .model-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 0.25rem;
+        }
+
+        .model-card-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text);
+        }
+
+        .model-remove {
+            padding: 0.125rem 0.25rem;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .model-card:hover .model-remove {
+            opacity: 1;
+        }
+
+        .model-card-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .model-badge {
+            padding: 0.125rem 0.375rem;
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--primary);
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 600;
+        }
+
+        .model-badge.local {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .model-badge.cached {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        /* パラメータ */
+        .parameter {
+            margin-bottom: 1rem;
+        }
+
+        .parameter-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .parameter-name {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .parameter-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .parameter-slider {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .parameter-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .parameter-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        /* メインコンテンツ */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            overflow: hidden;
+            transition: margin 0.3s ease;
+        }
+
+        .content.sidebar-open {
+            margin-left: var(--sidebar-width);
+        }
+
+        .content.console-open {
+            margin-right: var(--console-width);
+        }
+
+        /* 入出力エリア */
+        .io-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            height: 100%;
+        }
+
+        .input-section, .output-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1rem;
+            min-height: 0;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .textarea {
+            flex: 1;
+            width: 100%;
+            background: var(--background);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+        }
+
+        .textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .output-area {
+            flex: 1;
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* アクションバー */
+        .action-bar {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem 0;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* コンソール */
+        .console {
+            width: var(--console-width);
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .console.open {
+            transform: translateX(0);
+        }
+
+        .console-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .console-title {
+            font-weight: 600;
+        }
+
+        .console-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .console-btn {
+            padding: 0.25rem 0.5rem;
+            background: var(--surface-light);
+            border: none;
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .console-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .console-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .console-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .console-tab {
+            flex: 1;
+            padding: 0.75rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .console-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+            word-wrap: break-word;
+        }
+
+        .log-level {
+            display: inline-block;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .log-level.info { background: rgba(59, 130, 246, 0.2); color: var(--primary); }
+        .log-level.warn { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .log-level.error { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .log-level.success { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .log-level.debug { background: rgba(139, 92, 246, 0.2); color: var(--secondary); }
+
+        .log-time {
+            color: var(--text-dim);
+            font-size: 0.625rem;
+            margin-right: 0.5rem;
+        }
+
+        /* プログレスバー */
+        .progress-container {
+            padding: 1rem;
+            background: var(--background);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transition: width 0.3s ease;
+        }
+
+        .progress-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .progress-stat {
+            text-align: center;
+            padding: 0.5rem;
+            background: var(--background);
+            border-radius: 6px;
+        }
+
+        .progress-stat-label {
+            font-size: 0.625rem;
+            color: var(--text-dim);
+            margin-bottom: 0.25rem;
+        }
+
+        .progress-stat-value {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* ローディングスピナー */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* オーバーレイ */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            display: none;
+        }
+
+        .overlay.show {
+            display: block;
+        }
+
+        /* ステータスバー */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--background);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+
+        .status-indicator.ready { background: var(--success); }
+        .status-indicator.loading { background: var(--warning); animation: pulse 1s infinite; }
+        .status-indicator.error { background: var(--danger); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .sidebar, .console { width: 100%; }
+            .content.sidebar-open, .content.console-open { margin: 0; }
+            .app-subtitle { display: none; }
+        }
+
+        /* ファイル入力 */
+        #file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-left">
+            <button id="menu-toggle" class="menu-toggle">☰</button>
+            <h1 class="app-title">AI-Web-Inferencer</h1>
+            <span class="app-subtitle">Local Model Edition</span>
+        </div>
+        <div class="header-right">
+            <div id="inference-mode" class="inference-indicator no-model">
+                <span class="mode-icon">⭕</span>
+                <span class="mode-text">No Model</span>
+                <div class="mode-details">
+                    <div class="details-content">
+                        <div class="detail-row">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value" id="status-value">No Model Loaded</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Backend:</span>
+                            <span class="detail-value" id="backend-value">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Provider:</span>
+                            <span class="detail-value" id="provider-value">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Model:</span>
+                            <span class="detail-value" id="model-value">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Performance:</span>
+                            <span class="detail-value" id="perf-value">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Memory:</span>
+                            <span class="detail-value" id="memory-value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button id="console-toggle" class="header-btn">
+                📊 Console
+            </button>
+            <button id="help-btn" class="header-btn">
+                ⌨️ Shortcuts
+            </button>
+        </div>
+    </header>
+
+    <!-- メインコンテナ -->
+    <div class="main-container">
+        <!-- サイドバー -->
+        <aside id="sidebar" class="sidebar">
+            <!-- モデルインポート -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">📦 Import Local Model (ZIP)</h3>
+                <div id="import-zone" class="import-zone">
+                    <input type="file" id="file-input" accept=".zip" style="display: none;">
+                    <div class="import-icon">📁</div>
+                    <div class="import-text">Drop model.zip here or click</div>
+                    <div class="import-formats">HuggingFace format (.zip)</div>
+                </div>
+                <div id="import-status" class="import-status"></div>
+            </div>
+
+            <!-- モデル選択 -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">🤖 Available Models</h3>
+                <div class="model-tabs">
+                    <button class="model-tab active" data-tab="remote">Remote</button>
+                    <button class="model-tab" data-tab="local">Local</button>
+                </div>
+                
+                <!-- モデル検索とフィルター -->
+                <div style="margin: 0.5rem 0;">
+                    <input type="text" id="model-search" placeholder="Search models..." 
+                           style="width: 100%; padding: 0.5rem; background: var(--background); 
+                                  border: 1px solid var(--border); border-radius: 6px; 
+                                  color: var(--text); font-size: 0.75rem;">
+                </div>
+                
+                <!-- カテゴリフィルター -->
+                <div id="category-filters" style="display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.5rem;">
+                    <button class="category-btn active" data-category="all" 
+                            style="padding: 0.25rem 0.5rem; font-size: 0.625rem; 
+                                   background: var(--primary); color: white; 
+                                   border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">All</button>
+                    <button class="category-btn" data-category="instruction"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.625rem; 
+                                   background: var(--surface-light); color: var(--text-secondary); 
+                                   border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">📝 Instruction</button>
+                    <button class="category-btn" data-category="code"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.625rem; 
+                                   background: var(--surface-light); color: var(--text-secondary); 
+                                   border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">💻 Code</button>
+                    <button class="category-btn" data-category="conversation"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.625rem; 
+                                   background: var(--surface-light); color: var(--text-secondary); 
+                                   border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">💬 Chat</button>
+                    <button class="category-btn" data-category="multilingual"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.625rem; 
+                                   background: var(--surface-light); color: var(--text-secondary); 
+                                   border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">🌍 Multi-lang</button>
+                    <button class="category-btn" data-category="lightweight"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.625rem; 
+                                   background: var(--surface-light); color: var(--text-secondary); 
+                                   border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">⚡ Fast</button>
+                    <button class="category-btn" data-category="summarization"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.625rem; 
+                                   background: var(--surface-light); color: var(--text-secondary); 
+                                   border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s;">📄 Summary</button>
+                </div>
+                
+                <div id="model-count" style="font-size: 0.625rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+                    Showing all models
+                </div>
+                
+                <div id="remote-models" class="model-list">
+                    <!-- リモートモデルが動的に生成される -->
+                </div>
+                <div id="local-models" class="model-list" style="display: none;">
+                    <!-- ローカルモデルが動的に生成される -->
+                </div>
+            </div>
+
+            <!-- パラメータ -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">⚙️ Generation Parameters</h3>
+                <div class="parameter">
+                    <div class="parameter-label">
+                        <span class="parameter-name">Temperature</span>
+                        <span id="temp-value" class="parameter-value">1.0</span>
+                    </div>
+                    <input type="range" id="temperature" class="parameter-slider" 
+                           min="0.1" max="2.0" value="1.0" step="0.1">
+                </div>
+                <div class="parameter">
+                    <div class="parameter-label">
+                        <span class="parameter-name">Max Tokens</span>
+                        <span id="tokens-value" class="parameter-value">100</span>
+                    </div>
+                    <input type="range" id="max-tokens" class="parameter-slider" 
+                           min="10" max="500" value="100" step="10">
+                </div>
+                <div class="parameter">
+                    <div class="parameter-label">
+                        <span class="parameter-name">Top K</span>
+                        <span id="topk-value" class="parameter-value">50</span>
+                    </div>
+                    <input type="range" id="top-k" class="parameter-slider" 
+                           min="1" max="100" value="50" step="1">
+                </div>
+                <div class="parameter">
+                    <div class="parameter-label">
+                        <span class="parameter-name">Top P</span>
+                        <span id="topp-value" class="parameter-value">0.9</span>
+                    </div>
+                    <input type="range" id="top-p" class="parameter-slider" 
+                           min="0.1" max="1.0" value="0.9" step="0.05">
+                </div>
+                <div class="parameter">
+                    <div class="parameter-label">
+                        <span class="parameter-name">Rep. Penalty</span>
+                        <span id="rep-value" class="parameter-value">1.0</span>
+                    </div>
+                    <input type="range" id="rep-penalty" class="parameter-slider" 
+                           min="0.8" max="2.0" value="1.0" step="0.1">
+                </div>
+            </div>
+        </aside>
+
+        <!-- メインコンテンツ -->
+        <main id="content" class="content">
+            <div class="io-container">
+                <!-- 入力エリア -->
+                <div class="input-section">
+                    <div class="section-header">
+                        <span class="section-title">INPUT PROMPT</span>
+                        <span id="input-counter" style="font-size: 0.75rem; color: var(--text-dim);">0 chars</span>
+                    </div>
+                    <textarea id="input-text" class="textarea" 
+                              placeholder="Enter your prompt here... (Ctrl+Enter to generate)"></textarea>
+                </div>
+
+                <!-- アクションバー -->
+                <div class="action-bar">
+                    <button id="generate-btn" class="btn btn-primary" disabled>
+                        <span>▶</span>
+                        <span>Generate</span>
+                    </button>
+                    <button id="stop-btn" class="btn btn-danger" disabled>
+                        <span>■</span>
+                        <span>Stop</span>
+                    </button>
+                    <button id="clear-btn" class="btn btn-secondary">
+                        Clear
+                    </button>
+                    <button id="copy-btn" class="btn btn-secondary">
+                        Copy Output
+                    </button>
+                    <div style="flex: 1;"></div>
+                    <div class="status-bar">
+                        <div id="status-indicator" class="status-indicator"></div>
+                        <span id="status-text">No model loaded</span>
+                    </div>
+                </div>
+
+                <!-- 出力エリア -->
+                <div class="output-section">
+                    <div class="section-header">
+                        <span class="section-title">GENERATED OUTPUT</span>
+                        <span id="output-counter" style="font-size: 0.75rem; color: var(--text-dim);">0 tokens</span>
+                    </div>
+                    <div id="output-text" class="output-area"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- コンソール -->
+        <aside id="console" class="console">
+            <div class="console-header">
+                <span class="console-title">Console</span>
+                <div class="console-controls">
+                    <button id="clear-console" class="console-btn">Clear</button>
+                    <button id="auto-scroll" class="console-btn">Auto↓</button>
+                </div>
+            </div>
+            
+            <div class="console-tabs">
+                <button class="console-tab active" data-tab="logs">Logs</button>
+                <button class="console-tab" data-tab="progress">Progress</button>
+                <button class="console-tab" data-tab="stats">Stats</button>
+            </div>
+            
+            <div id="console-content" class="console-content">
+                <!-- ログタブ -->
+                <div id="logs-tab" class="console-panel">
+                    <!-- ログエントリが動的に追加される -->
+                </div>
+                
+                <!-- 進捗タブ -->
+                <div id="progress-tab" class="console-panel" style="display: none;">
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span id="progress-label">Ready</span>
+                            <span id="progress-percent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-stats">
+                            <div class="progress-stat">
+                                <div class="progress-stat-label">Speed</div>
+                                <div id="progress-speed" class="progress-stat-value">-</div>
+                            </div>
+                            <div class="progress-stat">
+                                <div class="progress-stat-label">Time</div>
+                                <div id="progress-time" class="progress-stat-value">-</div>
+                            </div>
+                            <div class="progress-stat">
+                                <div class="progress-stat-label">Size</div>
+                                <div id="progress-size" class="progress-stat-value">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 統計タブ -->
+                <div id="stats-tab" class="console-panel" style="display: none;">
+                    <div style="padding: 1rem;">
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.75rem;">Current Model</div>
+                            <div id="stat-model" style="font-weight: 600;">-</div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.75rem;">Model Type</div>
+                            <div id="stat-type" style="font-weight: 600;">-</div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.75rem;">Backend</div>
+                            <div id="stat-backend" style="font-weight: 600;">-</div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.75rem;">Total Generations</div>
+                            <div id="stat-generations" style="font-weight: 600;">0</div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.75rem;">Avg. Generation Time</div>
+                            <div id="stat-avg-time" style="font-weight: 600;">-</div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: var(--text-dim); font-size: 0.75rem;">Avg. Tokens/Sec</div>
+                            <div id="stat-avg-tokens" style="font-weight: 600;">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- オーバーレイ -->
+    <div id="overlay" class="overlay"></div>
+
+    <!-- JSZipライブラリ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- メインスクリプト -->
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.0';
+        
+        // 環境設定
+        env.allowLocalModels = false;
+        env.allowRemoteModels = true;
+        
+        // ============================================
+        // Blob URL + Custom Fetch によるローカルモデル対応
+        // ============================================
+        class LocalModelLoader {
+            constructor() {
+                this.modelCache = new Map();
+                this.originalFetch = window.fetch.bind(window);
+                this.urlMappings = new Map();
+                this.setupCustomFetch();
+            }
+
+            setupCustomFetch() {
+                const self = this;
+                
+                // window.fetchをインターセプト
+                window.fetch = async function(url, ...args) {
+                    const urlStr = typeof url === 'string' ? url : url.toString();
+                    
+                    // ローカルモデルのURLパターンをチェック
+                    if (urlStr.startsWith('local-model://')) {
+                        return self.handleLocalModelFetch(urlStr);
+                    }
+                    
+                    // URLマッピングをチェック
+                    if (self.urlMappings.has(urlStr)) {
+                        return self.handleMappedFetch(urlStr);
+                    }
+                    
+                    // 通常のfetchにフォールバック
+                    return self.originalFetch(url, ...args);
+                };
+            }
+
+            async handleLocalModelFetch(url) {
+                const path = url.replace('local-model://', '');
+                const [modelId, ...filePath] = path.split('/');
+                const fileName = filePath.join('/');
+                
+                const cacheKey = `${modelId}/${fileName}`;
+                
+                if (this.modelCache.has(cacheKey)) {
+                    const data = this.modelCache.get(cacheKey);
+                    
+                    // JSONファイルの場合
+                    if (fileName.endsWith('.json')) {
+                        return new Response(data, {
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                    }
+                    
+                    // ONNXファイルの場合
+                    if (fileName.endsWith('.onnx')) {
+                        return new Response(data, {
+                            headers: { 'Content-Type': 'application/octet-stream' }
+                        });
+                    }
+                    
+                    // その他のファイル
+                    return new Response(data);
+                }
+                
+                // ファイルが見つからない場合
+                return new Response(null, { status: 404 });
+            }
+
+            async handleMappedFetch(url) {
+                const blob = this.urlMappings.get(url);
+                const response = await this.originalFetch(blob);
+                return response;
+            }
+
+            async importZipFile(zipFile) {
+                const zip = await JSZip.loadAsync(zipFile);
+                const modelId = `model-${Date.now()}`;
+                const modelInfo = {
+                    id: modelId,
+                    name: zipFile.name.replace('.zip', ''),
+                    type: null,
+                    files: new Map()
+                };
+
+                // ZIPファイルの内容を展開
+                for (const [path, zipEntry] of Object.entries(zip.files)) {
+                    if (!zipEntry.dir) {
+                        const fileName = path.split('/').pop();
+                        const fullPath = path;
+                        
+                        if (fileName.endsWith('.json')) {
+                            // JSONファイルをテキストとして読み込み
+                            const content = await zipEntry.async('text');
+                            this.modelCache.set(`${modelId}/${fullPath}`, content);
+                            modelInfo.files.set(fullPath, { type: 'json', size: content.length });
+                            
+                            // config.jsonからモデルタイプを判定
+                            if (fileName === 'config.json') {
+                                try {
+                                    const config = JSON.parse(content);
+                                    modelInfo.type = this.detectModelType(config);
+                                } catch (e) {
+                                    console.warn('Failed to parse config.json:', e);
+                                }
+                            }
+                        } else if (fileName.endsWith('.onnx')) {
+                            // ONNXファイルをBlobとして読み込み
+                            const blob = await zipEntry.async('blob');
+                            const blobUrl = URL.createObjectURL(blob);
+                            
+                            // Blob URLをマッピング
+                            const modelUrl = `local-model://${modelId}/${fullPath}`;
+                            this.urlMappings.set(modelUrl, blobUrl);
+                            this.modelCache.set(`${modelId}/${fullPath}`, blob);
+                            modelInfo.files.set(fullPath, { type: 'onnx', size: blob.size });
+                        } else {
+                            // その他のファイル
+                            const blob = await zipEntry.async('blob');
+                            this.modelCache.set(`${modelId}/${fullPath}`, blob);
+                            modelInfo.files.set(fullPath, { type: 'other', size: blob.size });
+                        }
+                    }
+                }
+
+                return modelInfo;
+            }
+
+            detectModelType(config) {
+                if (config.model_type) {
+                    if (config.model_type.includes('t5') || config.model_type.includes('T5')) {
+                        return 'text2text-generation';
+                    }
+                    if (config.model_type.includes('gpt') || config.model_type.includes('GPT')) {
+                        return 'text-generation';
+                    }
+                }
+                
+                if (config.architectures && config.architectures.length > 0) {
+                    const arch = config.architectures[0].toLowerCase();
+                    if (arch.includes('t5')) return 'text2text-generation';
+                    if (arch.includes('gpt')) return 'text-generation';
+                    if (arch.includes('bert')) return 'feature-extraction';
+                }
+                
+                return 'text-generation'; // デフォルト
+            }
+
+            async loadModel(modelId, modelType) {
+                // カスタムURLを使用してパイプラインを作成
+                const modelUrl = `local-model://${modelId}`;
+                
+                // Transformers.jsのenvを一時的に設定
+                const originalRemoteURL = env.remoteURL;
+                const originalLocalURL = env.localURL;
+                
+                try {
+                    // パイプラインを作成（カスタムfetchが自動的に使用される）
+                    const pipe = await pipeline(modelType, modelUrl, {
+                        progress_callback: (progress) => {
+                            app.updateProgress(progress);
+                        }
+                    });
+                    
+                    return pipe;
+                } finally {
+                    // 環境設定を復元
+                    env.remoteURL = originalRemoteURL;
+                    env.localURL = originalLocalURL;
+                }
+            }
+        }
+
+        // ============================================
+        // 推論モード検出とインジケーター管理（修正版）
+        // ============================================
+        class InferenceModeDetector {
+            constructor() {
+                this.actualBackend = 'none';
+                this.isInferring = false;
+                this.performanceStats = [];
+                this.indicator = document.getElementById('inference-mode');
+                this.init();
+            }
+
+            init() {
+                // 初期状態を設定
+                this.updateIndicator('no-model');
+                this.updateDetails();
+                
+                // メモリ使用量を定期的に更新
+                setInterval(() => this.updateMemoryUsage(), 2000);
+            }
+
+            // Transformers.jsの実際のバックエンドを検出
+            async detectActualBackend(generator) {
+                if (!generator) {
+                    this.actualBackend = 'none';
+                    return 'none';
+                }
+
+                try {
+                    // Transformers.jsのパイプラインオブジェクトを検査
+                    // モデルのセッション情報を取得
+                    if (generator.model && generator.model.session) {
+                        const session = generator.model.session;
+                        
+                        // ONNX Runtimeのバックエンド情報を取得
+                        if (session.handler && session.handler.backend) {
+                            const backend = session.handler.backend;
+                            logger.log('debug', `Detected ONNX Runtime backend: ${backend}`);
+                            
+                            if (backend.includes('webgpu')) {
+                                this.actualBackend = 'webgpu';
+                                return 'webgpu';
+                            } else if (backend.includes('webgl')) {
+                                this.actualBackend = 'webgl';
+                                return 'webgl';
+                            } else if (backend.includes('wasm')) {
+                                this.actualBackend = 'wasm';
+                                return 'wasm';
+                            }
+                        }
+                    }
+
+                    // フォールバック: 環境変数からバックエンドを推測
+                    if (env.backends?.onnx?.wasm) {
+                        // WebAssemblyバックエンドが有効
+                        const wasmBackends = env.backends.onnx.wasm;
+                        
+                        // WebGPUが利用可能か確認
+                        if ('gpu' in navigator) {
+                            try {
+                                const adapter = await navigator.gpu.requestAdapter();
+                                if (adapter) {
+                                    logger.log('debug', 'WebGPU available and likely in use');
+                                    this.actualBackend = 'webgpu';
+                                    return 'webgpu';
+                                }
+                            } catch (e) {
+                                // WebGPU not available
+                            }
+                        }
+
+                        // WebGLチェック
+                        const canvas = document.createElement('canvas');
+                        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+                        if (gl && wasmBackends.proxy) {
+                            logger.log('debug', 'WebGL2 available and likely in use');
+                            this.actualBackend = 'webgl';
+                            return 'webgl';
+                        }
+
+                        // WASMのみ
+                        logger.log('debug', 'Using WASM backend');
+                        this.actualBackend = 'wasm';
+                        return 'wasm';
+                    }
+
+                    // デフォルトはWASM
+                    this.actualBackend = 'wasm';
+                    return 'wasm';
+
+                } catch (error) {
+                    logger.log('warn', `Failed to detect backend: ${error.message}`);
+                    this.actualBackend = 'wasm';
+                    return 'wasm';
+                }
+            }
+
+            // モデルロード時に呼ばれる
+            async onModelLoaded(generator, modelInfo) {
+                const backend = await this.detectActualBackend(generator);
+                logger.log('info', `Model loaded with backend: ${backend}`);
+                
+                this.updateIndicatorForBackend(backend);
+                this.updateDetailsForModel(modelInfo, backend);
+            }
+
+            // 推論開始時に呼ばれる
+            onInferenceStart() {
+                this.isInferring = true;
+                this.indicator.classList.add('inferring');
+                this.inferenceStartTime = Date.now();
+                logger.log('debug', 'Inference started');
+            }
+
+            // 推論終了時に呼ばれる
+            onInferenceEnd(tokensGenerated) {
+                this.isInferring = false;
+                this.indicator.classList.remove('inferring');
+                
+                if (this.inferenceStartTime) {
+                    const elapsed = (Date.now() - this.inferenceStartTime) / 1000;
+                    const tokensPerSec = tokensGenerated / elapsed;
+                    
+                    this.performanceStats.push(tokensPerSec);
+                    if (this.performanceStats.length > 10) {
+                        this.performanceStats.shift();
+                    }
+                    
+                    const avgPerformance = this.performanceStats.reduce((a, b) => a + b, 0) / this.performanceStats.length;
+                    
+                    document.getElementById('perf-value').textContent = `${avgPerformance.toFixed(1)} tokens/sec`;
+                    
+                    // 統計タブも更新
+                    document.getElementById('stat-avg-tokens').textContent = `${avgPerformance.toFixed(1)} tokens/sec`;
+                    
+                    logger.log('debug', `Inference ended: ${tokensPerSec.toFixed(1)} tokens/sec`);
+                }
+            }
+
+            // インジケーターを更新
+            updateIndicatorForBackend(backend) {
+                const indicator = this.indicator;
+                const iconElement = indicator.querySelector('.mode-icon');
+                const textElement = indicator.querySelector('.mode-text');
+                
+                // Remove all mode classes
+                indicator.className = 'inference-indicator';
+                
+                switch(backend) {
+                    case 'webgpu':
+                        indicator.classList.add('webgpu-mode');
+                        iconElement.textContent = '⚡';
+                        textElement.textContent = 'WebGPU';
+                        break;
+                    case 'webgl':
+                        indicator.classList.add('webgl-mode');
+                        iconElement.textContent = '🎮';
+                        textElement.textContent = 'WebGL';
+                        break;
+                    case 'wasm':
+                        indicator.classList.add('cpu-mode');
+                        iconElement.textContent = '🖥️';
+                        textElement.textContent = 'WASM';
+                        break;
+                    case 'none':
+                        indicator.classList.add('no-model');
+                        iconElement.textContent = '⭕';
+                        textElement.textContent = 'No Model';
+                        break;
+                    default:
+                        indicator.classList.add('detecting');
+                        iconElement.textContent = '🔄';
+                        textElement.textContent = 'Detecting...';
+                }
+            }
+
+            updateIndicator(mode) {
+                // 互換性のため残す
+                this.updateIndicatorForBackend(mode === 'no-model' ? 'none' : mode);
+            }
+
+            // 詳細情報を更新
+            updateDetailsForModel(modelInfo, backend) {
+                const backendNames = {
+                    'webgpu': 'WebGPU',
+                    'webgl': 'WebGL2',
+                    'wasm': 'WebAssembly',
+                    'none': '-'
+                };
+
+                const providerNames = {
+                    'webgpu': 'ONNX Runtime Web (WebGPU)',
+                    'webgl': 'ONNX Runtime Web (WebGL)',
+                    'wasm': 'ONNX Runtime Web (WASM)',
+                    'none': '-'
+                };
+
+                const estimatedPerf = {
+                    'webgpu': '20-50',
+                    'webgl': '10-25',
+                    'wasm': '5-15',
+                    'none': '-'
+                };
+
+                document.getElementById('status-value').textContent = backend === 'none' ? 'No Model Loaded' : 'Model Ready';
+                document.getElementById('backend-value').textContent = backendNames[backend];
+                
+                // バックエンドに応じて色分け
+                const backendElement = document.getElementById('backend-value');
+                backendElement.className = 'detail-value';
+                if (backend === 'webgpu') backendElement.classList.add('secondary');
+                else if (backend === 'webgl') backendElement.classList.add('warning');
+                else if (backend === 'wasm') backendElement.classList.add('primary');
+                
+                document.getElementById('provider-value').textContent = providerNames[backend];
+                document.getElementById('model-value').textContent = modelInfo ? modelInfo.name : '-';
+                
+                if (this.performanceStats.length > 0) {
+                    const avgPerf = this.performanceStats.reduce((a, b) => a + b, 0) / this.performanceStats.length;
+                    document.getElementById('perf-value').textContent = `${avgPerf.toFixed(1)} tokens/sec`;
+                } else {
+                    document.getElementById('perf-value').textContent = backend === 'none' ? '-' : `~${estimatedPerf[backend]} tokens/sec`;
+                }
+            }
+
+            updateDetails() {
+                // 互換性のため残す
+                this.updateDetailsForModel(null, this.actualBackend);
+            }
+
+            // メモリ使用量を更新
+            updateMemoryUsage() {
+                if (performance.memory) {
+                    const used = (performance.memory.usedJSHeapSize / 1048576).toFixed(0);
+                    const limit = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(0);
+                    document.getElementById('memory-value').textContent = `${used}/${limit} MB`;
+                } else {
+                    document.getElementById('memory-value').textContent = 'N/A';
+                }
+            }
+        }
+
+        // ============================================
+        // アプリケーション本体
+        // ============================================
+        const app = {
+            localModelLoader: new LocalModelLoader(),
+            inferenceDetector: new InferenceModeDetector(),
+            currentModel: null,
+            generator: null,
+            isGenerating: false,
+            abortController: null,
+            logs: [],
+            localModels: new Map(),
+            totalGenerations: 0,
+            generationTimes: [],
+            tokenCounts: [],
+            autoScroll: true,
+            
+            presetModels: [
+                // === FLAN-T5シリーズ (Google) ===
+                {
+                    id: 'Xenova/flan-t5-small',
+                    name: 'FLAN-T5 Small',
+                    size: '80MB',
+                    type: 'text2text-generation',
+                    description: 'Google\'s instruction-tuned model',
+                    category: 'instruction',
+                    recommended: true
+                },
+                {
+                    id: 'Xenova/flan-t5-base',
+                    name: 'FLAN-T5 Base',
+                    size: '220MB',
+                    type: 'text2text-generation',
+                    description: 'Larger FLAN-T5 for better quality',
+                    category: 'instruction',
+                    recommended: true
+                },
+                
+                // === LaMiniシリーズ ===
+                {
+                    id: 'Xenova/LaMini-Flan-T5-77M',
+                    name: 'LaMini FLAN-T5 77M',
+                    size: '160MB',
+                    type: 'text2text-generation',
+                    description: 'Lightweight instruction model',
+                    category: 'lightweight'
+                },
+                {
+                    id: 'Xenova/LaMini-Flan-T5-248M',
+                    name: 'LaMini FLAN-T5 248M',
+                    size: '500MB',
+                    type: 'text2text-generation',
+                    description: 'Medium-sized instruction model',
+                    category: 'instruction'
+                },
+                {
+                    id: 'Xenova/LaMini-Flan-T5-783M',
+                    name: 'LaMini FLAN-T5 783M',
+                    size: '1.6GB',
+                    type: 'text2text-generation',
+                    description: 'Large instruction-following model',
+                    category: 'instruction',
+                    recommended: true
+                },
+                {
+                    id: 'Xenova/LaMini-T5-61M',
+                    name: 'LaMini T5 61M',
+                    size: '120MB',
+                    type: 'text2text-generation',
+                    description: 'Ultra-light T5 model',
+                    category: 'lightweight'
+                },
+                {
+                    id: 'Xenova/LaMini-T5-223M',
+                    name: 'LaMini T5 223M',
+                    size: '450MB',
+                    type: 'text2text-generation',
+                    description: 'Balanced T5 model',
+                    category: 'general'
+                },
+                {
+                    id: 'Xenova/LaMini-T5-738M',
+                    name: 'LaMini T5 738M',
+                    size: '1.5GB',
+                    type: 'text2text-generation',
+                    description: 'Large T5 for complex tasks',
+                    category: 'general'
+                },
+                
+                // === GPTシリーズ ===
+                {
+                    id: 'Xenova/gpt2',
+                    name: 'GPT-2 Base',
+                    size: '250MB',
+                    type: 'text-generation',
+                    description: 'OpenAI\'s classic text generation',
+                    category: 'general'
+                },
+                {
+                    id: 'Xenova/distilgpt2',
+                    name: 'DistilGPT-2',
+                    size: '100MB',
+                    type: 'text-generation',
+                    description: 'Distilled version of GPT-2',
+                    category: 'lightweight'
+                },
+                {
+                    id: 'Xenova/gpt-neo-125M',
+                    name: 'GPT-Neo 125M',
+                    size: '250MB',
+                    type: 'text-generation',
+                    description: 'EleutherAI\'s open GPT model',
+                    category: 'general'
+                },
+                
+                // === コード生成モデル ===
+                {
+                    id: 'Xenova/codegen-350M-mono',
+                    name: 'CodeGen 350M Mono',
+                    size: '700MB',
+                    type: 'text-generation',
+                    description: 'Python code generation specialist',
+                    category: 'code',
+                    recommended: true
+                },
+                {
+                    id: 'Xenova/codegen-350M-multi',
+                    name: 'CodeGen 350M Multi',
+                    size: '700MB',
+                    type: 'text-generation',
+                    description: 'Multi-language code generation',
+                    category: 'code'
+                },
+                {
+                    id: 'Xenova/starcoderbase-1b',
+                    name: 'StarCoder Base 1B',
+                    size: '2GB',
+                    type: 'text-generation',
+                    description: 'Advanced code generation model',
+                    category: 'code'
+                },
+                
+                // === 会話・チャットモデル ===
+                {
+                    id: 'Xenova/blenderbot-400M-distill',
+                    name: 'BlenderBot 400M',
+                    size: '800MB',
+                    type: 'text2text-generation',
+                    description: 'Facebook\'s conversational AI',
+                    category: 'conversation',
+                    recommended: true
+                },
+                {
+                    id: 'Xenova/blenderbot_small-90M',
+                    name: 'BlenderBot Small 90M',
+                    size: '180MB',
+                    type: 'text2text-generation',
+                    description: 'Lightweight chat model',
+                    category: 'conversation'
+                },
+                {
+                    id: 'Xenova/DialoGPT-small',
+                    name: 'DialoGPT Small',
+                    size: '250MB',
+                    type: 'text-generation',
+                    description: 'Microsoft\'s conversational model',
+                    category: 'conversation'
+                },
+                {
+                    id: 'Xenova/DialoGPT-medium',
+                    name: 'DialoGPT Medium',
+                    size: '500MB',
+                    type: 'text-generation',
+                    description: 'Larger conversational model',
+                    category: 'conversation'
+                },
+                
+                // === 多言語モデル ===
+                {
+                    id: 'Xenova/mt5-small',
+                    name: 'mT5 Small',
+                    size: '300MB',
+                    type: 'text2text-generation',
+                    description: 'Multilingual T5 model',
+                    category: 'multilingual'
+                },
+                {
+                    id: 'Xenova/mt5-base',
+                    name: 'mT5 Base',
+                    size: '600MB',
+                    type: 'text2text-generation',
+                    description: 'Larger multilingual T5',
+                    category: 'multilingual'
+                },
+                {
+                    id: 'Xenova/m2m100_418M',
+                    name: 'M2M-100 418M',
+                    size: '850MB',
+                    type: 'text2text-generation',
+                    description: '100+ language translation',
+                    category: 'multilingual'
+                },
+                
+                // === 要約・QAモデル ===
+                {
+                    id: 'Xenova/bart-base',
+                    name: 'BART Base',
+                    size: '400MB',
+                    type: 'text2text-generation',
+                    description: 'Summarization and generation',
+                    category: 'summarization'
+                },
+                {
+                    id: 'Xenova/bart-large-cnn',
+                    name: 'BART Large CNN',
+                    size: '800MB',
+                    type: 'text2text-generation',
+                    description: 'News summarization specialist',
+                    category: 'summarization'
+                },
+                {
+                    id: 'Xenova/t5-small',
+                    name: 'T5 Small',
+                    size: '80MB',
+                    type: 'text2text-generation',
+                    description: 'Google\'s original T5',
+                    category: 'general'
+                },
+                {
+                    id: 'Xenova/t5-base',
+                    name: 'T5 Base',
+                    size: '220MB',
+                    type: 'text2text-generation',
+                    description: 'Standard T5 model',
+                    category: 'general'
+                },
+                {
+                    id: 'Xenova/long-t5-tglobal-base',
+                    name: 'LongT5 Global Base',
+                    size: '250MB',
+                    type: 'text2text-generation',
+                    description: 'For long document processing',
+                    category: 'summarization'
+                },
+                
+                // === 創造的モデル ===
+                {
+                    id: 'Xenova/bloom-560m',
+                    name: 'BLOOM 560M',
+                    size: '1.1GB',
+                    type: 'text-generation',
+                    description: 'BigScience multilingual model',
+                    category: 'multilingual'
+                },
+                {
+                    id: 'Xenova/gpt-j-6B',
+                    name: 'GPT-J 6B Quantized',
+                    size: '3GB',
+                    type: 'text-generation',
+                    description: 'Large-scale generation (slow)',
+                    category: 'large'
+                },
+                
+                // === 実験的モデル ===
+                {
+                    id: 'Xenova/opus-mt-en-ja',
+                    name: 'Opus MT EN-JA',
+                    size: '200MB',
+                    type: 'text2text-generation',
+                    description: 'English to Japanese translation',
+                    category: 'translation'
+                },
+                {
+                    id: 'Xenova/opus-mt-ja-en',
+                    name: 'Opus MT JA-EN',
+                    size: '200MB',
+                    type: 'text2text-generation',
+                    description: 'Japanese to English translation',
+                    category: 'translation'
+                }
+            ]
+        };
+
+        // DOM要素
+        const elements = {
+            sidebar: document.getElementById('sidebar'),
+            content: document.getElementById('content'),
+            console: document.getElementById('console'),
+            overlay: document.getElementById('overlay'),
+            menuToggle: document.getElementById('menu-toggle'),
+            consoleToggle: document.getElementById('console-toggle'),
+            helpBtn: document.getElementById('help-btn'),
+            importZone: document.getElementById('import-zone'),
+            fileInput: document.getElementById('file-input'),
+            importStatus: document.getElementById('import-status'),
+            remoteModels: document.getElementById('remote-models'),
+            localModels: document.getElementById('local-models'),
+            inputText: document.getElementById('input-text'),
+            outputText: document.getElementById('output-text'),
+            generateBtn: document.getElementById('generate-btn'),
+            stopBtn: document.getElementById('stop-btn'),
+            clearBtn: document.getElementById('clear-btn'),
+            copyBtn: document.getElementById('copy-btn'),
+            statusIndicator: document.getElementById('status-indicator'),
+            statusText: document.getElementById('status-text'),
+            logsTab: document.getElementById('logs-tab'),
+            progressTab: document.getElementById('progress-tab'),
+            statsTab: document.getElementById('stats-tab'),
+            inputCounter: document.getElementById('input-counter'),
+            outputCounter: document.getElementById('output-counter'),
+            // パラメータ
+            temperature: document.getElementById('temperature'),
+            maxTokens: document.getElementById('max-tokens'),
+            topK: document.getElementById('top-k'),
+            topP: document.getElementById('top-p'),
+            repPenalty: document.getElementById('rep-penalty'),
+            tempValue: document.getElementById('temp-value'),
+            tokensValue: document.getElementById('tokens-value'),
+            topkValue: document.getElementById('topk-value'),
+            toppValue: document.getElementById('topp-value'),
+            repValue: document.getElementById('rep-value'),
+            // Progress
+            progressLabel: document.getElementById('progress-label'),
+            progressPercent: document.getElementById('progress-percent'),
+            progressFill: document.getElementById('progress-fill'),
+            progressSpeed: document.getElementById('progress-speed'),
+            progressTime: document.getElementById('progress-time'),
+            progressSize: document.getElementById('progress-size'),
+            // Stats
+            statModel: document.getElementById('stat-model'),
+            statType: document.getElementById('stat-type'),
+            statBackend: document.getElementById('stat-backend'),
+            statGenerations: document.getElementById('stat-generations'),
+            statAvgTime: document.getElementById('stat-avg-time'),
+            statAvgTokens: document.getElementById('stat-avg-tokens')
+        };
+
+        // ログシステム
+        class Logger {
+            constructor() {
+                this.logs = [];
+                this.maxLogs = 200;
+                this.interceptConsole();
+            }
+
+            interceptConsole() {
+                const originalLog = console.log;
+                const originalWarn = console.warn;
+                const originalError = console.error;
+
+                console.log = (...args) => {
+                    originalLog.apply(console, args);
+                    this.log('info', args.join(' '));
+                };
+
+                console.warn = (...args) => {
+                    originalWarn.apply(console, args);
+                    this.log('warn', args.join(' '));
+                };
+
+                console.error = (...args) => {
+                    originalError.apply(console, args);
+                    this.log('error', args.join(' '));
+                };
+            }
+
+            log(level, message) {
+                const entry = {
+                    level,
+                    message,
+                    timestamp: new Date()
+                };
+                
+                this.logs.push(entry);
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.shift();
+                }
+                
+                this.renderLog(entry);
+            }
+
+            renderLog(entry) {
+                const logElement = document.createElement('div');
+                logElement.className = 'log-entry';
+                
+                const time = entry.timestamp.toLocaleTimeString();
+                logElement.innerHTML = `
+                    <span class="log-time">${time}</span>
+                    <span class="log-level ${entry.level}">${entry.level.toUpperCase()}</span>
+                    <span>${this.escapeHtml(entry.message)}</span>
+                `;
+                
+                elements.logsTab.appendChild(logElement);
+                
+                if (app.autoScroll) {
+                    elements.logsTab.scrollTop = elements.logsTab.scrollHeight;
+                }
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            clear() {
+                this.logs = [];
+                elements.logsTab.innerHTML = '';
+            }
+        }
+
+        const logger = new Logger();
+
+        // UIヘルパー関数
+        function toggleSidebar() {
+            elements.sidebar.classList.toggle('open');
+            elements.content.classList.toggle('sidebar-open');
+            elements.overlay.classList.toggle('show', elements.sidebar.classList.contains('open'));
+        }
+
+        function toggleConsole() {
+            elements.console.classList.toggle('open');
+            elements.content.classList.toggle('console-open');
+            elements.consoleToggle.classList.toggle('active');
+        }
+
+        function updateStatus(type, message) {
+            elements.statusIndicator.className = `status-indicator ${type}`;
+            elements.statusText.textContent = message;
+            logger.log(type === 'error' ? 'error' : type === 'loading' ? 'warn' : 'info', message);
+        }
+
+        function updateSliders() {
+            elements.tempValue.textContent = elements.temperature.value;
+            elements.tokensValue.textContent = elements.maxTokens.value;
+            elements.topkValue.textContent = elements.topK.value;
+            elements.toppValue.textContent = elements.topP.value;
+            elements.repValue.textContent = elements.repPenalty.value;
+        }
+
+        app.updateProgress = function(progress) {
+            if (progress.status === 'progress' || progress.progress) {
+                const percent = Math.round(progress.progress || 0);
+                elements.progressPercent.textContent = `${percent}%`;
+                elements.progressFill.style.width = `${percent}%`;
+                
+                if (progress.file) {
+                    elements.progressLabel.textContent = `Loading: ${progress.file}`;
+                }
+                
+                if (progress.loaded && progress.total) {
+                    const loaded = (progress.loaded / 1024 / 1024).toFixed(2);
+                    const total = (progress.total / 1024 / 1024).toFixed(2);
+                    elements.progressSize.textContent = `${loaded}/${total} MB`;
+                }
+            } else if (progress.status === 'ready') {
+                elements.progressLabel.textContent = 'Model Ready';
+                elements.progressPercent.textContent = '100%';
+                elements.progressFill.style.width = '100%';
+            }
+        };
+
+        // モデル管理
+        let currentCategory = 'all';
+        let searchQuery = '';
+        
+        function filterModels() {
+            const models = app.presetModels.filter(model => {
+                const matchesCategory = currentCategory === 'all' || model.category === currentCategory;
+                const matchesSearch = !searchQuery || 
+                    model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    model.description.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesCategory && matchesSearch;
+            });
+            
+            renderFilteredModels(models);
+            
+            // カウント更新
+            const countText = searchQuery || currentCategory !== 'all' 
+                ? `Showing ${models.length} of ${app.presetModels.length} models`
+                : `Showing all ${models.length} models`;
+            document.getElementById('model-count').textContent = countText;
+        }
+        
+        function renderFilteredModels(models) {
+            elements.remoteModels.innerHTML = '';
+            
+            if (models.length === 0) {
+                elements.remoteModels.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.75rem;">
+                        No models found
+                    </div>
+                `;
+                return;
+            }
+            
+            models.forEach(model => {
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                card.dataset.modelId = model.id;
+                
+                // カテゴリに応じた色
+                const categoryColors = {
+                    'instruction': '#3b82f6',
+                    'code': '#10b981',
+                    'conversation': '#8b5cf6',
+                    'multilingual': '#f59e0b',
+                    'lightweight': '#06b6d4',
+                    'summarization': '#ec4899',
+                    'translation': '#f97316',
+                    'large': '#ef4444',
+                    'general': '#6b7280'
+                };
+                
+                const categoryColor = categoryColors[model.category] || '#6b7280';
+                
+                card.innerHTML = `
+                    <div class="model-card-header">
+                        <div class="model-card-name">
+                            ${model.recommended ? '⭐ ' : ''}${model.name}
+                        </div>
+                    </div>
+                    <div class="model-card-info">
+                        <span class="model-badge">${model.size}</span>
+                        <span class="model-badge" style="background: ${categoryColor}20; color: ${categoryColor};">
+                            ${model.category}
+                        </span>
+                        ${model.recommended ? '<span class="model-badge" style="background: #fbbf2420; color: #fbbf24;">Recommended</span>' : ''}
+                    </div>
+                    <div style="font-size: 0.625rem; color: var(--text-dim); margin-top: 0.25rem;">
+                        ${model.description}
+                    </div>
+                `;
+                card.addEventListener('click', () => selectModel(model.id, false));
+                elements.remoteModels.appendChild(card);
+            });
+        }
+        
+        function renderRemoteModels() {
+            filterModels();
+        }
+
+        function renderLocalModels() {
+            elements.localModels.innerHTML = '';
+            
+            if (app.localModels.size === 0) {
+                elements.localModels.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--text-dim); font-size: 0.875rem;">
+                        No local models imported yet
+                    </div>
+                `;
+                return;
+            }
+            
+            app.localModels.forEach((model, modelId) => {
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                card.dataset.modelId = modelId;
+                
+                // ファイルサイズを計算
+                let totalSize = 0;
+                model.files.forEach(file => {
+                    totalSize += file.size;
+                });
+                const sizeStr = (totalSize / 1024 / 1024).toFixed(2) + ' MB';
+                
+                card.innerHTML = `
+                    <div class="model-card-header">
+                        <div class="model-card-name">${model.name}</div>
+                        <button class="model-remove" data-model="${modelId}">Remove</button>
+                    </div>
+                    <div class="model-card-info">
+                        <span class="model-badge local">LOCAL</span>
+                        <span class="model-badge">${sizeStr}</span>
+                        <span>${model.type || 'unknown'}</span>
+                    </div>
+                `;
+                
+                card.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('model-remove')) {
+                        selectModel(modelId, true);
+                    }
+                });
+                
+                // Remove button
+                card.querySelector('.model-remove').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeLocalModel(modelId);
+                });
+                
+                elements.localModels.appendChild(card);
+            });
+        }
+
+        function removeLocalModel(modelId) {
+            app.localModels.delete(modelId);
+            renderLocalModels();
+            if (app.currentModel?.id === modelId) {
+                app.currentModel = null;
+                app.generator = null;
+                updateStatus('ready', 'Model removed');
+                elements.generateBtn.disabled = true;
+                app.inferenceDetector.updateIndicator('no-model');
+                app.inferenceDetector.updateDetails();
+            }
+        }
+
+        async function selectModel(modelId, isLocal = false) {
+            // UIを更新
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelector(`[data-model-id="${modelId}"]`)?.classList.add('selected');
+            
+            try {
+                updateStatus('loading', `Loading model ${modelId}...`);
+                const startTime = Date.now();
+                
+                if (isLocal) {
+                    // ローカルモデルのロード
+                    const model = app.localModels.get(modelId);
+                    if (!model) {
+                        throw new Error('Local model not found');
+                    }
+                    
+                    logger.log('info', `Loading local model: ${model.name}`);
+                    app.generator = await app.localModelLoader.loadModel(modelId, model.type);
+                    app.currentModel = model;
+                    
+                    // Stats更新
+                    elements.statModel.textContent = model.name;
+                    elements.statType.textContent = model.type;
+                    
+                } else {
+                    // リモートモデルのロード
+                    const model = app.presetModels.find(m => m.id === modelId);
+                    if (!model) {
+                        throw new Error('Model not found');
+                    }
+                    
+                    logger.log('info', `Loading remote model: ${model.name}`);
+                    app.generator = await pipeline(model.type, modelId, {
+                        progress_callback: (progress) => {
+                            app.updateProgress(progress);
+                        }
+                    });
+                    app.currentModel = model;
+                    
+                    // Stats更新
+                    elements.statModel.textContent = model.name;
+                    elements.statType.textContent = model.type;
+                }
+                
+                // 実際のバックエンドを検出して表示を更新
+                await app.inferenceDetector.onModelLoaded(app.generator, app.currentModel);
+                
+                // バックエンド情報を統計タブに反映
+                const backend = app.inferenceDetector.actualBackend;
+                const backendNames = {
+                    'webgpu': 'WebGPU',
+                    'webgl': 'WebGL2',
+                    'wasm': 'WebAssembly',
+                    'none': '-'
+                };
+                elements.statBackend.textContent = backendNames[backend];
+                
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+                updateStatus('ready', `Model loaded in ${elapsed}s`);
+                elements.generateBtn.disabled = false;
+                
+            } catch (error) {
+                logger.log('error', `Failed to load model: ${error.message}`);
+                updateStatus('error', 'Failed to load model');
+                elements.generateBtn.disabled = true;
+                app.inferenceDetector.updateIndicator('no-model');
+                app.inferenceDetector.updateDetails();
+            }
+        }
+
+        // テキスト生成
+        async function generate() {
+            if (!app.generator || app.isGenerating) return;
+            
+            const input = elements.inputText.value.trim();
+            if (!input) {
+                logger.log('warn', 'No input provided');
+                return;
+            }
+            
+            app.isGenerating = true;
+            app.abortController = new AbortController();
+            elements.generateBtn.disabled = true;
+            elements.stopBtn.disabled = false;
+            elements.outputText.textContent = '';
+            elements.outputCounter.textContent = '0 tokens';
+            updateStatus('loading', 'Generating...');
+            
+            // 推論開始を通知
+            app.inferenceDetector.onInferenceStart();
+            
+            const startTime = Date.now();
+            
+            try {
+                const options = {
+                    max_new_tokens: parseInt(elements.maxTokens.value),
+                    temperature: parseFloat(elements.temperature.value),
+                    top_k: parseInt(elements.topK.value),
+                    top_p: parseFloat(elements.topP.value),
+                    repetition_penalty: parseFloat(elements.repPenalty.value),
+                    signal: app.abortController.signal
+                };
+
+                const result = await app.generator(input, options);
+                
+                let output = '';
+                if (app.currentModel.type === 'text2text-generation') {
+                    output = result[0].generated_text;
+                } else {
+                    output = result[0].generated_text.replace(input, '').trim();
+                }
+                
+                const elapsed = (Date.now() - startTime) / 1000;
+                app.generationTimes.push(elapsed);
+                app.totalGenerations++;
+                
+                // トークン数を推定（簡易的）
+                const estimatedTokens = Math.floor(output.length / 4);
+                app.tokenCounts.push(estimatedTokens);
+                
+                // 推論終了を通知
+                app.inferenceDetector.onInferenceEnd(estimatedTokens);
+                
+                // Stats更新
+                elements.statGenerations.textContent = app.totalGenerations;
+                const avgTime = (app.generationTimes.reduce((a, b) => a + b, 0) / app.generationTimes.length).toFixed(2);
+                elements.statAvgTime.textContent = `${avgTime}s`;
+                
+                logger.log('success', `Generation completed in ${elapsed.toFixed(2)}s`);
+                
+                // タイピングアニメーション
+                animateOutput(output);
+                
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    logger.log('error', `Generation failed: ${error.message}`);
+                    elements.outputText.textContent = `Error: ${error.message}`;
+                    updateStatus('error', 'Generation failed');
+                }
+                // エラー時も推論終了を通知
+                app.inferenceDetector.onInferenceEnd(0);
+            } finally {
+                app.isGenerating = false;
+                elements.generateBtn.disabled = false;
+                elements.stopBtn.disabled = true;
+            }
+        }
+
+        function animateOutput(text) {
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i < text.length && !app.abortController.signal.aborted) {
+                    elements.outputText.textContent += text.charAt(i);
+                    i++;
+                    
+                    // トークン数の推定（簡易的）
+                    const tokens = Math.floor(i / 4);
+                    elements.outputCounter.textContent = `~${tokens} tokens`;
+                } else {
+                    clearInterval(interval);
+                    updateStatus('ready', 'Generation complete');
+                }
+            }, 20);
+        }
+
+        function stopGeneration() {
+            if (app.abortController) {
+                app.abortController.abort();
+                logger.log('info', 'Generation stopped by user');
+                updateStatus('ready', 'Generation stopped');
+                // 推論終了を通知
+                app.inferenceDetector.onInferenceEnd(0);
+            }
+        }
+
+        // ドラッグ&ドロップ
+        function setupDragDrop() {
+            const zone = elements.importZone;
+            
+            zone.addEventListener('click', () => {
+                elements.fileInput.click();
+            });
+            
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('dragover');
+            });
+            
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('dragover');
+            });
+            
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].name.endsWith('.zip')) {
+                    handleFileUpload(files[0]);
+                } else {
+                    showImportStatus('Please upload a .zip file', 'error');
+                }
+            });
+            
+            elements.fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileUpload(e.target.files[0]);
+                }
+            });
+        }
+
+        async function handleFileUpload(file) {
+            try {
+                showImportStatus('Extracting ZIP file...', 'loading');
+                
+                const modelInfo = await app.localModelLoader.importZipFile(file);
+                app.localModels.set(modelInfo.id, modelInfo);
+                
+                renderLocalModels();
+                
+                const fileCount = modelInfo.files.size;
+                showImportStatus(`✔ Model imported: ${fileCount} files`, 'success');
+                
+                logger.log('success', `Model "${modelInfo.name}" imported successfully`);
+                
+                // 自動的にローカルタブに切り替え
+                document.querySelector('[data-tab="local"]').click();
+                
+            } catch (error) {
+                console.error('Failed to import model:', error);
+                showImportStatus('Failed to import model', 'error');
+                logger.log('error', `Import failed: ${error.message}`);
+            }
+        }
+
+        function showImportStatus(message, type = 'info') {
+            const status = elements.importStatus;
+            status.textContent = message;
+            status.className = 'import-status show';
+            if (type === 'error') status.classList.add('error');
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    status.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        // タブ切り替え
+        function setupTabs() {
+            // モデルタブ
+            document.querySelectorAll('.model-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.model-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    const tabName = tab.dataset.tab;
+                    if (tabName === 'remote') {
+                        elements.remoteModels.style.display = 'block';
+                        elements.localModels.style.display = 'none';
+                    } else {
+                        elements.remoteModels.style.display = 'none';
+                        elements.localModels.style.display = 'block';
+                    }
+                });
+            });
+            
+            // コンソールタブ
+            document.querySelectorAll('.console-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.console-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    const tabName = tab.dataset.tab;
+                    document.getElementById('logs-tab').style.display = tabName === 'logs' ? 'block' : 'none';
+                    document.getElementById('progress-tab').style.display = tabName === 'progress' ? 'block' : 'none';
+                    document.getElementById('stats-tab').style.display = tabName === 'stats' ? 'block' : 'none';
+                });
+            });
+        }
+
+        // キーボードショートカット
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey) {
+                    switch(e.key) {
+                        case 'Enter':
+                            e.preventDefault();
+                            if (!elements.generateBtn.disabled) generate();
+                            break;
+                        case '.':
+                            e.preventDefault();
+                            stopGeneration();
+                            break;
+                        case 'm':
+                            e.preventDefault();
+                            toggleSidebar();
+                            break;
+                        case 'l':
+                            e.preventDefault();
+                            toggleConsole();
+                            break;
+                        case 'k':
+                            e.preventDefault();
+                            elements.inputText.value = '';
+                            break;
+                    }
+                }
+            });
+        }
+
+        // イベントリスナー設定
+        function setupEventListeners() {
+            elements.menuToggle.addEventListener('click', toggleSidebar);
+            elements.consoleToggle.addEventListener('click', toggleConsole);
+            elements.overlay.addEventListener('click', toggleSidebar);
+            
+            elements.helpBtn.addEventListener('click', () => {
+                alert(`Keyboard Shortcuts:
+• Ctrl + Enter: Generate
+• Ctrl + . : Stop generation
+• Ctrl + M: Toggle model menu
+• Ctrl + L: Toggle console
+• Ctrl + K: Clear input`);
+            });
+            
+            elements.generateBtn.addEventListener('click', generate);
+            elements.stopBtn.addEventListener('click', stopGeneration);
+            
+            elements.clearBtn.addEventListener('click', () => {
+                elements.inputText.value = '';
+                elements.outputText.textContent = '';
+                elements.inputCounter.textContent = '0 chars';
+                elements.outputCounter.textContent = '0 tokens';
+            });
+            
+            elements.copyBtn.addEventListener('click', () => {
+                const text = elements.outputText.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    logger.log('info', 'Output copied to clipboard');
+                });
+            });
+            
+            document.getElementById('clear-console').addEventListener('click', () => {
+                logger.clear();
+            });
+            
+            document.getElementById('auto-scroll').addEventListener('click', () => {
+                app.autoScroll = !app.autoScroll;
+                document.getElementById('auto-scroll').textContent = app.autoScroll ? 'Auto↓' : 'Auto-';
+            });
+            
+            // モデル検索
+            document.getElementById('model-search').addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                filterModels();
+            });
+            
+            // カテゴリフィルター
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.category-btn').forEach(b => {
+                        b.style.background = 'var(--surface-light)';
+                        b.style.color = 'var(--text-secondary)';
+                    });
+                    btn.style.background = 'var(--primary)';
+                    btn.style.color = 'white';
+                    
+                    currentCategory = btn.dataset.category;
+                    filterModels();
+                });
+            });
+            
+            // パラメータスライダー
+            elements.temperature.addEventListener('input', updateSliders);
+            elements.maxTokens.addEventListener('input', updateSliders);
+            elements.topK.addEventListener('input', updateSliders);
+            elements.topP.addEventListener('input', updateSliders);
+            elements.repPenalty.addEventListener('input', updateSliders);
+            
+            // 文字数カウンター
+            elements.inputText.addEventListener('input', () => {
+                elements.inputCounter.textContent = `${elements.inputText.value.length} chars`;
+            });
+        }
+
+        // 初期化
+        function init() {
+            logger.log('info', '=== AI-Web-Inferencer Local Model Edition ===');
+            logger.log('info', 'Initializing application...');
+            logger.log('info', 'Fixed: Inference mode now reflects actual Transformers.js backend');
+            
+            renderRemoteModels();
+            renderLocalModels();
+            setupDragDrop();
+            setupTabs();
+            setupKeyboardShortcuts();
+            setupEventListeners();
+            updateSliders();
+            updateStatus('ready', 'Select a model or import a local model');
+            
+            logger.log('success', 'Application ready!');
+            logger.log('info', 'Tip: Drop a .zip file to import local models');
+            logger.log('info', 'Inference indicator shows actual backend (WebGPU/WebGL/WASM)');
+        }
+
+        // アプリ起動
+        init();
+    </script>
+</body>
+</html>
